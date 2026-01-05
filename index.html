@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Meeting Minutes Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Meeting Minutes & Action Notes</h1>
+    <p class="subtitle">Paste meeting transcript to generate MoM and Action Items</p>
+
+    <textarea id="transcript" placeholder="Paste meeting transcript here..."></textarea>
+
+    <button onclick="generateMoM()">Generate MoM & Action Notes</button>
+
+    <div class="output">
+        <h2>Minutes of Meeting</h2>
+        <div id="mom"></div>
+
+        <h2>Action Notes</h2>
+        <table id="actions">
+            <thead>
+                <tr>
+                    <th>Action Item</th>
+                    <th>Owner</th>
+                    <th>Deadline</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
