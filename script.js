@@ -8,7 +8,7 @@ function generateMoM() {
     }
 
     // -------------------------------
-    // 1. Detect Names & Roles
+    // 1. Name & Role Mapping
     // -------------------------------
     const people = {
         rajesh: "Project Manager",
@@ -26,20 +26,20 @@ function generateMoM() {
     });
 
     // -------------------------------
-    // 2. Detect Deadline
+    // 2. Deadline Extraction (STRONG)
     // -------------------------------
     function extractDeadline(sentence) {
         if (sentence.includes("today")) return "Today";
         if (sentence.includes("tomorrow") || sentence.includes("tmrw")) return "Tomorrow";
 
-        const dateMatch = sentence.match(/\b(by|on)?\s?\d{1,2}(st|nd|rd|th)?\b/);
+        const dateMatch = sentence.match(/\b(by|on)\s?\d{1,2}(st|nd|rd|th)?\b/);
         if (dateMatch) return dateMatch[0];
 
-        return "TBD";
+        return null; // IMPORTANT: return null, not TBD
     }
 
     // -------------------------------
-    // 3. Sentence-wise Processing
+    // 3. Process Sentence-by-Sentence
     // -------------------------------
     const sentences = rawText.split(/[.?!]/);
     let actions = [];
@@ -47,8 +47,9 @@ function generateMoM() {
 
     sentences.forEach(sentence => {
         const s = sentence.toLowerCase();
+        if (s.trim() === "") return;
 
-        // Identify owner from sentence
+        // Owner detection
         let owner = "Unassigned";
         Object.keys(detectedPeople).forEach(name => {
             if (s.includes(name)) {
@@ -56,12 +57,14 @@ function generateMoM() {
             }
         });
 
-        const deadline = extractDeadline(s);
+        // Deadline detection
+        const detectedDeadline = extractDeadline(s);
+        const deadline = detectedDeadline ? detectedDeadline : "TBD";
 
-        // Engineering actions
-        if (s.includes("test") || s.includes("bug") || s.includes("build")) {
+        // Engineering
+        if (s.includes("test") || s.includes("testing") || s.includes("bug") || s.includes("build")) {
             actions.push([
-                "Complete pending engineering work",
+                "Complete pending testing activities",
                 owner,
                 deadline,
                 "High"
@@ -69,10 +72,10 @@ function generateMoM() {
             risks.push("Product quality risk");
         }
 
-        // Client actions
+        // Client
         if (s.includes("client")) {
             actions.push([
-                "Update client on current status",
+                "Communicate updated status to client",
                 owner,
                 deadline,
                 "High"
@@ -80,17 +83,17 @@ function generateMoM() {
             risks.push("Client dissatisfaction risk");
         }
 
-        // Marketing actions
+        // Marketing
         if (s.includes("marketing")) {
             actions.push([
-                "Align marketing communication",
+                "Align marketing communication with revised timeline",
                 owner,
                 deadline,
                 "Medium"
             ]);
         }
 
-        // Operations / vendor actions
+        // Operations
         if (s.includes("vendor") || s.includes("operations")) {
             actions.push([
                 "Coordinate with vendors on timelines",
@@ -111,7 +114,7 @@ function generateMoM() {
     // 4. Generate MoM
     // -------------------------------
     document.getElementById("mom").innerHTML = `
-        <strong>Meeting Purpose:</strong> Review project status and align next steps.<br><br>
+        <strong>Meeting Purpose:</strong> Review project status and assign next steps.<br><br>
 
         <strong>Participants Identified:</strong>
         <ul>
@@ -122,16 +125,10 @@ function generateMoM() {
         <ul>
             ${[...new Set(risks)].map(r => `<li>${r}</li>`).join("") || "<li>No major risks identified</li>"}
         </ul>
-
-        <strong>Summary:</strong>
-        <ul>
-            <li>Discussion focused on delivery timelines, dependencies, and ownership</li>
-            <li>Multiple action items were identified for follow-up</li>
-        </ul>
     `;
 
     // -------------------------------
-    // 5. Generate Action Notes Table
+    // 5. Populate Action Notes
     // -------------------------------
     const tableBody = document.querySelector("#actions tbody");
     tableBody.innerHTML = "";
