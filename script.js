@@ -1,77 +1,155 @@
 function generateMoM() {
-    const transcript = document.getElementById("transcript").value.toLowerCase();
+    const rawText = document.getElementById("transcript").value;
+    const text = rawText.toLowerCase();
 
-    if (transcript.trim() === "") {
+    if (text.trim() === "") {
         alert("Please paste a meeting transcript.");
         return;
     }
 
-    // --------- BASIC INTENT DETECTION ----------
-    let purpose = "General project discussion";
-    let risks = [];
+    // -------------------------------
+    // 1. Detect Names & Roles
+    // -------------------------------
+    const people = {
+        rajesh: "Project Manager",
+        anita: "Marketing Lead",
+        vikram: "Engineering Lead",
+        pooja: "Operations",
+        suresh: "Client Relationship Manager"
+    };
+
+    let detectedPeople = {};
+    Object.keys(people).forEach(name => {
+        if (text.includes(name)) {
+            detectedPeople[name] = people[name];
+        }
+    });
+
+    // -------------------------------
+    // 2. Detect Deadline
+    // -------------------------------
+    function extractDeadline(sentence) {
+        if (sentence.includes("today")) return "Today";
+        if (sentence.includes("tomorrow") || sentence.includes("tmrw")) return "Tomorrow";
+
+        const dateMatch = sentence.match(/\b(by|on)?\s?\d{1,2}(st|nd|rd|th)?\b/);
+        if (dateMatch) return dateMatch[0];
+
+        return "TBD";
+    }
+
+    // -------------------------------
+    // 3. Sentence-wise Processing
+    // -------------------------------
+    const sentences = rawText.split(/[.?!]/);
     let actions = [];
+    let risks = [];
 
-    if (transcript.includes("delay") || transcript.includes("late")) {
-        purpose = "Review project delay and identify corrective actions";
-        risks.push("Project timeline slippage");
-    }
+    sentences.forEach(sentence => {
+        const s = sentence.toLowerCase();
 
-    if (transcript.includes("client")) {
-        risks.push("Client dissatisfaction");
-        actions.push(["Communicate updated status to client", "Project Manager", "Immediate", "High"]);
-    }
+        // Identify owner from sentence
+        let owner = "Unassigned";
+        Object.keys(detectedPeople).forEach(name => {
+            if (s.includes(name)) {
+                owner = `${name.charAt(0).toUpperCase() + name.slice(1)} (${detectedPeople[name]})`;
+            }
+        });
 
-    if (transcript.includes("testing") || transcript.includes("bug")) {
-        actions.push(["Complete pending testing activities", "Engineering Lead", "TBD", "High"]);
-        risks.push("Product quality issues");
-    }
+        const deadline = extractDeadline(s);
 
-    if (transcript.includes("marketing")) {
-        actions.push(["Align marketing communication with revised timeline", "Marketing Lead", "TBD", "Medium"]);
-    }
+        // Engineering actions
+        if (s.includes("test") || s.includes("bug") || s.includes("build")) {
+            actions.push([
+                "Complete pending engineering work",
+                owner,
+                deadline,
+                "High"
+            ]);
+            risks.push("Product quality risk");
+        }
 
-    if (transcript.includes("vendor") || transcript.includes("operations")) {
-        actions.push(["Update vendors on revised timelines", "Operations Team", "After confirmation", "Medium"]);
-        risks.push("Operational cost escalation");
-    }
+        // Client actions
+        if (s.includes("client")) {
+            actions.push([
+                "Update client on current status",
+                owner,
+                deadline,
+                "High"
+            ]);
+            risks.push("Client dissatisfaction risk");
+        }
 
-    // --------- GENERATE MoM ----------
-    let momHTML = `
-        <strong>Meeting Purpose:</strong> ${purpose}<br><br>
+        // Marketing actions
+        if (s.includes("marketing")) {
+            actions.push([
+                "Align marketing communication",
+                owner,
+                deadline,
+                "Medium"
+            ]);
+        }
 
-        <strong>Key Discussion Points:</strong>
+        // Operations / vendor actions
+        if (s.includes("vendor") || s.includes("operations")) {
+            actions.push([
+                "Coordinate with vendors on timelines",
+                owner,
+                deadline,
+                "Medium"
+            ]);
+            risks.push("Operational cost risk");
+        }
+
+        // Delay risk
+        if (s.includes("delay") || s.includes("late")) {
+            risks.push("Project timeline slippage");
+        }
+    });
+
+    // -------------------------------
+    // 4. Generate MoM
+    // -------------------------------
+    document.getElementById("mom").innerHTML = `
+        <strong>Meeting Purpose:</strong> Review project status and align next steps.<br><br>
+
+        <strong>Participants Identified:</strong>
         <ul>
-            <li>Review of current project status</li>
-            <li>Identification of key challenges and dependencies</li>
+            ${Object.keys(detectedPeople).map(p => `<li>${p.charAt(0).toUpperCase() + p.slice(1)} – ${detectedPeople[p]}</li>`).join("")}
         </ul>
 
-        <strong>Identified Risks:</strong>
+        <strong>Key Risks Identified:</strong>
         <ul>
-            ${risks.map(r => `<li>${r}</li>`).join("") || "<li>No major risks identified</li>"}
+            ${[...new Set(risks)].map(r => `<li>${r}</li>`).join("") || "<li>No major risks identified</li>"}
         </ul>
 
-        <strong>Next Steps:</strong>
+        <strong>Summary:</strong>
         <ul>
-            <li>Define clear ownership and timelines</li>
-            <li>Ensure structured follow-up communication</li>
+            <li>Discussion focused on delivery timelines, dependencies, and ownership</li>
+            <li>Multiple action items were identified for follow-up</li>
         </ul>
     `;
 
-    document.getElementById("mom").innerHTML = momHTML;
-
-    // --------- GENERATE ACTION TABLE ----------
+    // -------------------------------
+    // 5. Generate Action Notes Table
+    // -------------------------------
     const tableBody = document.querySelector("#actions tbody");
     tableBody.innerHTML = "";
 
     if (actions.length === 0) {
-        actions.push(["Review meeting outcomes and define next steps", "Project Manager", "TBD", "Low"]);
+        actions.push([
+            "Review meeting outcomes and define next steps",
+            "Unassigned",
+            "TBD",
+            "Low"
+        ]);
     }
 
     actions.forEach(action => {
         const row = document.createElement("tr");
         action.forEach(item => {
             const cell = document.createElement("td");
-            cell.contentEditable = "true"; // user can refine AI output
+            cell.contentEditable = "true";
             cell.innerText = item;
             row.appendChild(cell);
         });
